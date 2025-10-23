@@ -1,0 +1,183 @@
+{
+  // ---------- Lexer ----------
+  "comments": [
+    "'//'..'\\n'",
+    "'//'..'\\0'",
+    "'{'..'}'",
+    "'(*'..'*)'"
+  ],
+
+  "whitespace": [" ", "\\t", "\\r", "\\n"],
+
+  // ---------- Built-in Types ----------
+  "types": {
+    "Integer": { "type": "builtin_type", "value": "int32" },
+    "String": { "type": "builtin_type", "value": "utf16" },
+    "Boolean": { "type": "builtin_type", "value": "bool" }
+  },
+
+  // ---------- Enums ----------
+  "enums": {
+    "statement_enum": { "type": "enum", "values": ["assignment", "if", "while", "for", "return"] },
+    "operator_enum": { "type": "enum", "values": ["+", "-", "*", "/", ":="] }
+  },
+
+  // ---------- Grammar ----------
+  "grammar": {
+
+    // ---------- Comments ----------
+    "comment": {
+      "alternatives": [
+        "'//' text '\\n'",
+        "'{' text '}'",
+        "'(*' text '*)'"
+      ],
+      "where": {
+        "text": "@string"
+      },
+      "into": {
+        "psi": "PsiComment",
+        "fields": { "content": "text" }
+      }
+    },
+
+    // ---------- Identifiers ----------
+    "identifier": {
+      "alternatives": ["letters"],
+      "where": {
+        "letters": "sequence of letters,digits,'_' starting with letter"
+      },
+      "into": {
+        "psi": "PsiIdentifier",
+        "fields": { "name": "letters" }
+      }
+    },
+
+    // ---------- Variable Declaration ----------
+    "variable_declaration": {
+      "alternatives": ["name ':' var_type ';'"],
+      "where": {
+        "name": "@identifier",
+        "var_type": "choice of $Integer,$String,$Boolean"
+      },
+      "into": {
+        "psi": "PsiVariable",
+        "fields": { "name": "name", "type": "var_type" },
+        "executor": { "type": "variable_declaration", "name": "name", "value": null }
+      }
+    },
+
+    // ---------- Argument ----------
+    "argument": {
+      "alternatives": ["name ':' type"],
+      "where": {
+        "name": "@identifier",
+        "type": "@return_type"
+      },
+      "into": {
+        "psi": "PsiArgument",
+        "fields": { "name": "name", "type": "type" }
+      }
+    },
+
+    // ---------- Function ----------
+    "function_definition": {
+      "alternatives": ["'function' name '(' arguments ')' ':' return_type ';'"],
+      "where": {
+        "name": "@identifier",
+        "arguments": "list of @argument separated by ',', optional",
+        "return_type": "$Integer, optional"
+      },
+      "into": {
+        "psi": "PsiFunction",
+        "fields": { "name": "name", "parameters": "arguments", "return_type": "return_type" },
+        "executor": { "type": "function_definition", "name": "name", "params": "arguments" }
+      }
+    },
+
+    // ---------- Procedure ----------
+    "procedure_definition": {
+      "alternatives": ["'procedure' name '(' arguments ')' ';'"],
+      "where": {
+        "name": "@identifier",
+        "arguments": "list of @argument separated by ',', optional"
+      },
+      "into": {
+        "psi": "PsiProcedure",
+        "fields": { "name": "name", "parameters": "arguments" },
+        "executor": { "type": "procedure_definition", "name": "name", "params": "arguments" }
+      }
+    },
+
+    // ---------- Method ----------
+    "method_definition": {
+      "alternatives": ["method"],
+      "where": {
+        "method": "choice of @function_definition,@procedure_definition"
+      },
+      "into": {
+        "psi": "PsiMethod",
+        "fields": { "method": "method" },
+        "executor": { "type": "method", "node": "method" }
+      }
+    },
+
+    // ---------- Expressions ----------
+    "expression": {
+      "alternatives": ["left op right", "value"],
+      "where": {
+        "left": "@expression, optional",
+        "op": "single from @operator_enum, optional",
+        "right": "@expression, optional",
+        "value": "@identifier, optional"
+      },
+      "into": {
+        "psi": "PsiExpression",
+        "fields": { "left": "left", "operator": "op", "right": "right", "value": "value" },
+        "executor": { "type": "binary_expression", "left": "left", "op": "op", "right": "right" }
+      }
+    },
+
+    // ---------- Statements ----------
+    "statement": {
+      "alternatives": [],
+      "where": {
+        "type": "single from @statement_enum"
+      },
+      "into": {
+        "psi": "PsiStatement",
+        "fields": { "statement": "type" },
+        "executor": { "type": "statement", "statement": "type" }
+      }
+    },
+
+    "if_statement": {
+      "alternatives": ["'if' condition 'then' expression ';'"],
+      "where": {
+        "condition": "@expression",
+        "expression": "@expression"
+      },
+      "into": {
+        "psi": "PsiIfStatement",
+        "fields": { "condition": "condition", "expression": "expression" },
+        "executor": { "type": "if_statement", "condition": "condition", "body": "expression" }
+      }
+    },
+
+    "for_statement": {
+      "alternatives": ["'for' variable ':=' start 'to' end 'do' body"],
+      "where": {
+        "variable": "@identifier",
+        "start": "@expression",
+        "end": "@expression",
+        "body": "@statement"
+      },
+      "into": {
+        "psi": "PsiForStatement",
+        "fields": { "variable": "variable", "start": "start", "end": "end", "body": "body" },
+        "executor": { "type": "for_loop", "var": "variable", "from": "start", "to": "end", "body": "body" }
+      }
+    }
+
+  }
+}
