@@ -1,8 +1,5 @@
----
 
-
-
-\## \*\*1. PSI-L Syntax Rules\*\*
+## \*\*1. PSI-L Syntax Rules\*\*
 
 
 
